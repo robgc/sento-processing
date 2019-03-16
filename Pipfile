@@ -1,0 +1,18 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+spacy = '>=2.0,<2.1'
+nltk = '>=3.4,<3.5'
+pandas = '*'
+
+[dev-packages]
+flake8 = '*'
+autopep8 = '*'
+rope = '*'
+jupyter = '*'
+
+[requires]
+python_version = "3.7"
