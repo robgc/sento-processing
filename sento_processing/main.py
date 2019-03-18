@@ -23,20 +23,20 @@ import plac
 import spacy
 from spacy.util import compounding, minibatch
 
+from sento_processing.logger import get_logger, get_queue_listener
 from sento_processing.readers import read_tass_dataset
 
-TASS_basepath = (Path().cwd().parent
-                 .joinpath('resources', 'TASS-Datasets'))
+_TASS_basepath = (Path().absolute().parent
+                  .joinpath('resources', 'TASS-Datasets'))
+_logger = get_logger()
 
 
 @plac.annotations(
     model=('Model name. Defaults to blank "es" model.', 'option', 'm', str),
     output_dir=('Optional output directory', 'option', 'o', Path),
-    n_texts=('Number of texts to train from', 'option', 't', int),
-    n_iter=('Number of training iterations', 'option', 'n', int),
-    use_gpu=('Use GPU', 'option', 'g', int)
+    n_iter=('Number of training iterations', 'option', 'n', int)
 )
-def main(model=None, output_dir=None, n_iter=20, n_texts=2000, use_gpu=-1):
+def main(model=None, output_dir=None, n_iter=20):
     if output_dir is not None:
         output_dir = Path(output_dir)
         if not output_dir.exists():
@@ -44,10 +44,10 @@ def main(model=None, output_dir=None, n_iter=20, n_texts=2000, use_gpu=-1):
 
     if model is not None:
         nlp = spacy.load(model)  # load existing spaCy model
-        print("Loaded model '%s'" % model)
+        _logger.info('Loaded model "%s"', model)
     else:
         nlp = spacy.blank('es')  # create blank Language class
-        print("Created blank 'es' model")
+        _logger.info('Created blank "es" model')
 
     # add the text classifier to the pipeline if it doesn't exist
     # nlp.create_pipe works for built-ins that are registered with spaCy
@@ -63,16 +63,66 @@ def main(model=None, output_dir=None, n_iter=20, n_texts=2000, use_gpu=-1):
     textcat.add_label('N')
     textcat.add_label('NEU')
 
-    (train_texts, train_cats), (dev_texts, dev_cats) = load_data(limit=n_texts)
+    _logger.info('Loading TASS data')
+    (train_texts, train_cats), (dev_texts, dev_cats) = load_data()
+    _logger.info('Training samples: %d | Testing examples: %d',
+                 len(train_texts), len(dev_texts))
+
+    # Spacy model needs all the categories inside a dict with the 'cats' key
+    train_data = list(zip(
+        [_.content for _ in train_texts],
+        [{'cats': _} for _ in train_cats]
+    ))
+
+    # Get all the model pipes that are not the category pipe
+    other_pipes = [pipe for pipe in nlp.pipe_names if pipe != 'textcat']
+
+    with nlp.disable_pipes(*other_pipes):
+        optimizer = nlp.begin_training()
+
+        _logger.info('Training the model...')
+        _logger.info('{:^5}\t{:^5}\t{:^5}\t{:^5}'
+                     .format('LOSS', 'P', 'R', 'F'))
+
+        for i in range(n_iter):
+            losses = {}
+            # batch up the examples using spaCy's minibatch
+            batches = minibatch(train_data, size=compounding(4.0, 32.0, 1.001))
+
+            for batch in batches:
+                texts, annotations = zip(*batch)
+                nlp.update(texts, annotations, sgd=optimizer, drop=0.2,
+                           losses=losses)
+
+            with textcat.model.use_params(optimizer.averages):
+                # evaluate on the dev data split off in load_data()
+                scores = evaluate(nlp.tokenizer, textcat, [
+                                  _.content for _ in dev_texts], dev_cats)
+
+            _logger.info(
+                '{0:.3f}\t{1:.3f}\t{2:.3f}\t{3:.3f}'.format(
+                    losses['textcat'],
+                    scores['textcat_p'],
+                    scores['textcat_r'],
+                    scores['textcat_f']
+                )
+            )
+
+    if output_dir is not None:
+        with nlp.use_params(optimizer.averages):
+            nlp.to_disk(output_dir)
+        _logger.info('Saved model to %s', output_dir)
 
 
 def load_data():
-    training_data = read_tass_dataset(
-        TASS_basepath.joinpath('general-train-tagged-3l.xml')
-    )
-    dev_data = read_tass_dataset(
-        TASS_basepath.joinpath('general-test1k-tagged-3l.xml')
-    )
+    train_filepath = _TASS_basepath.joinpath('general-train-tagged-3l.xml')
+    test_filepath = _TASS_basepath.joinpath('general-test1k-tagged-3l.xml')
+
+    _logger.info('Loading training data from %s', train_filepath)
+    training_data = read_tass_dataset(train_filepath)
+
+    _logger.info('Loading test/dev data from %s', test_filepath)
+    dev_data = read_tass_dataset(test_filepath)
 
     random.shuffle(training_data)
     random.shuffle(dev_data)
@@ -99,5 +149,36 @@ def load_data():
             (dev_data, dev_categories))
 
 
+def evaluate(tokenizer, textcat, texts, cats):
+    docs = (tokenizer(text) for text in texts)
+    tp = 0.0   # True positives
+    fp = 1e-8  # False positives
+    fn = 1e-8  # False negatives
+    tn = 0.0   # True negatives
+    for i, doc in enumerate(textcat.pipe(docs)):
+        gold = cats[i]
+        for label, score in doc.cats.items():
+            if label not in gold:
+                continue
+            if score >= 0.5 and gold[label] >= 0.5:
+                tp += 1.0
+            elif score >= 0.5 and gold[label] < 0.5:
+                fp += 1.0
+            elif score < 0.5 and gold[label] < 0.5:
+                tn += 1
+            elif score < 0.5 and gold[label] >= 0.5:
+                fn += 1
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    if (precision+recall) == 0:
+        f_score = 0.0
+    else:
+        f_score = 2 * (precision * recall) / (precision + recall)
+    return {'textcat_p': precision, 'textcat_r': recall, 'textcat_f': f_score}
+
+
 if __name__ == '__main__':
-    main()
+    try:
+        plac.call(main)
+    finally:
+        get_queue_listener().stop()

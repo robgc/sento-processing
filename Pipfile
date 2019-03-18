@@ -4,15 +4,14 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-spacy = '>=2.0,<2.1'
-nltk = '>=3.4,<3.5'
-pandas = '*'
+spacy = '>=2.0.0,<2.1.0'
+plac = '>=0.9.6,<1.1.0'
 
 [dev-packages]
 flake8 = '*'
 autopep8 = '*'
 rope = '*'
-jupyter = '*'
+ptvsd = '*'
 
 [requires]
 python_version = "3.7"

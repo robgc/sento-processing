@@ -42,6 +42,6 @@ def read_tass_dataset(file_path):
                           else None)
 
         if polarity_value is not None and polarity_value != 'NONE':
-            read_results.push(_TASSTweet(content, polarity_value))
+            read_results.append(_TASSTweet(content, polarity_value))
 
     return read_results
