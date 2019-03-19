@@ -40,13 +40,16 @@ class Config:
 
         # Config file
         # Logging
-        self.LOGGING_LEVEL = parser['logging'].get('level')
-        self.LOGGING_OUTPUT = parser['logging'].get('output')
+        logging_section = parser['logging']
+        self.LOGGING_LEVEL = logging_section.get('level')
+        self.LOGGING_OUTPUT = logging_section.get('output')
 
         # Postgres
-        self.POSTGRES_HOST = parser['postgres'].get('host', 'postgres')
-        self.POSTGRES_PORT = int(parser['postgres'].get('port', 5432))
-        self.POSTGRES_USER = parser['postgres'].get('user')
+        pg_section = parser['postgres']
+        self.POSTGRES_HOST = pg_section.get('host', 'postgres')
+        self.POSTGRES_PORT = int(pg_section.get('port', 5432))
+        self.POSTGRES_USER = pg_section.get('user')
+        self.POSTGRES_DB_NAME = pg_section.get('db_name', 'sento')
 
 
 def get_config():
