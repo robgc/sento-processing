@@ -51,6 +51,13 @@ class Config:
         self.POSTGRES_USER = pg_section.get('user')
         self.POSTGRES_DB_NAME = pg_section.get('db_name', 'sento')
 
+        # NLP
+        model_path = Path(parser['nlp'].get('model_path'))
+        if not model_path.is_absolute():
+            model_path = config_path.parent.joinpath(model_path)
+
+        self.SPACY_MODEL_PATH = model_path
+
 
 def get_config():
     global _config

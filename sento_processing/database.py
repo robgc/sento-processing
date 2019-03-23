@@ -36,14 +36,15 @@ async def _get_conn_pool():
 
 async def get_unprocessed_batch(batch_size=100):
     results = None  # type: asyncpg.Record
-    async with _get_conn_pool() as conn:
+    pool = await _get_conn_pool()
+    async with pool.acquire() as conn:
         results = await conn.fetch(
             """
             SELECT
               s.id AS id,
               s.content AS content
             FROM
-              data.statuses
+              data.statuses s
             WHERE
               sentiment IS NULL
             LIMIT $1
@@ -54,7 +55,8 @@ async def get_unprocessed_batch(batch_size=100):
 
 
 async def store_processed_batch(batch):
-    async with _get_conn_pool() as conn:
+    pool = await _get_conn_pool()
+    async with pool.acquire() as conn:
         async with conn.transaction():
             await conn.executemany(
                 """
