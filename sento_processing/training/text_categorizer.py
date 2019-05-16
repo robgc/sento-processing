@@ -28,7 +28,7 @@ import spacy
 from spacy.util import compounding, minibatch
 
 from sento_processing.logger import get_logger, get_queue_listener
-from sento_processing.readers import read_tass_dataset
+from sento_processing.training.readers import read_tass_dataset
 
 _TASS_basepath = (Path().absolute().parent
                   .joinpath('resources', 'TASS-Datasets'))
