@@ -121,3 +121,5 @@ dmypy.json
 # Project specific
 config.ini
 secrets.env
+/models/
+docker-compose.override.yml

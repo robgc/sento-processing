@@ -14,7 +14,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-import os
 from configparser import ConfigParser
 from pathlib import Path
 
@@ -32,12 +31,6 @@ class Config:
         )
         parser.read(config_path)
 
-        env = os.environ
-
-        # Secrets
-        # Postgres
-        self.POSTGRES_PASSWD = env.get('POSTGRES_PASSWD', 'sento')
-
         # Config file
         # Logging
         logging_section = parser['logging']
@@ -50,6 +43,7 @@ class Config:
         self.POSTGRES_PORT = int(pg_section.get('port', 5432))
         self.POSTGRES_USER = pg_section.get('user')
         self.POSTGRES_DB_NAME = pg_section.get('db_name', 'sento')
+        self.POSTGRES_PASSWD = pg_section.get('password', 'sento')
 
         # NLP
         model_path = Path(parser['nlp'].get('model_path'))
