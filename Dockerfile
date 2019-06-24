@@ -23,12 +23,9 @@ COPY Pipfile /usr/src/app
 COPY Pipfile.lock /usr/src/app
 
 RUN set -x \
-    && apk add --no-cache postgresql-dev \
-    && apk add --no-cache --virtual build-deps \
-        make gcc g++ libffi-dev musl-dev \
+    && apk add --no-cache postgresql-dev make gcc g++ libffi-dev musl-dev \
     && pip install --no-cache-dir pipenv \
-    && pipenv sync --clear \
-    && apk del build-deps
+    && pipenv sync --clear
 
 COPY . /usr/src/app
 
