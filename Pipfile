@@ -6,7 +6,7 @@ verify_ssl = true
 [packages]
 spacy = '>=2.0.0,<2.1.0'
 plac = '>=0.9.6,<1.1.0'
-asyncpg = '>=0.18.0,<0.19.0'
+asyncpg = '>=0.18.0,<0.22.0'
 
 [dev-packages]
 flake8 = '*'
